@@ -1,0 +1,14 @@
+{
+  "app": {
+    "port": "PORT"
+  },
+  "connections": {
+    "db": {
+      "host": "DB_HOST",
+      "user": "DB_USER",
+      "port": "DB_PORT",
+      "password": "DB_PASSWORD",
+      "database": "DB_NAME"
+    }
+  }
+}

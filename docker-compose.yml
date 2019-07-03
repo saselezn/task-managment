@@ -1,0 +1,38 @@
+version: "3"
+
+services:
+  db:
+    image: postgres:10.4
+    environment:
+      DB_NAME: taskmanager
+      POSTGRES_DB: taskmanager
+      POSTGRES_USER: taskmanager
+      POSTGRES_PASSWORD: password
+    ports:
+    - 5432:5432
+  taskmanager:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: taskmanager
+      DB_USER: taskmanager
+      DB_PASSWORD: password
+    volumes:
+      - "yarn:/root/.cache/yarn"
+      - "./:/usr/src/adara-academy"
+      - "build:/usr/src/build"
+      - "node-modules:/usr/src/node-modules"
+    working_dir: /usr/src/adara-academy
+    depends_on:
+      - db
+    command: yarn start
+    ports:
+      - 3000:3000
+      - 9220:9220
+volumes:
+  yarn:
+  build:
+  node-modules:
