@@ -1,9 +1,11 @@
-import { TaskHandlers } from './tasks';
-import { UserHandlers } from './users';
-import { CommentHandlers } from './comments';
+import { taskHandlers } from './tasks';
+import { userHandlers } from './users';
+import { commentHandlers } from './comments';
+import { authHandlers } from './auth';
 
 export {
-  TaskHandlers,
-  UserHandlers,
-  CommentHandlers,
+  taskHandlers,
+  userHandlers,
+  commentHandlers,
+  authHandlers,
 };

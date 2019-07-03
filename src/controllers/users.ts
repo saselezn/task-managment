@@ -1,4 +1,5 @@
-import { Connection, Repository } from 'typeorm';
+import { getRepository } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
 import { Users } from '../models';
 
 export interface UserProps {
@@ -6,21 +7,22 @@ export interface UserProps {
   password: string;
 }
 
-export class UserHandlers {
-  private repo: Repository<Users>;
+const genSaltRounds = 10;
 
-  constructor(connection: Connection) {
-    this.repo = connection.getRepository(Users);
-  }
+class UserHandlers {
+  async add({ email, password }: UserProps) {
+    const user = new Users();
+    const salt = bcrypt.genSaltSync(genSaltRounds);
 
-  async add(user: UserProps) {
-    return this.repo.insert({
-      ...user,
-      role: 'user',
-    });
+    user.email = email;
+    user.password = bcrypt.hashSync(password, salt);
+
+    return getRepository(Users).save(user);
   }
 
   async getAll() {
-    return this.repo.find({});
+    return getRepository(Users).find({});
   }
 }
+
+export const userHandlers = new UserHandlers();

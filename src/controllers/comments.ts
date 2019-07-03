@@ -1,4 +1,4 @@
-import { Connection, Repository } from 'typeorm';
+import { getRepository } from 'typeorm';
 import { Comments } from '../models';
 
 export interface CommentProps {
@@ -7,22 +7,18 @@ export interface CommentProps {
   text: string;
 }
 
-export class CommentHandlers {
-  private repo: Repository<Comments>;
-
-  constructor(connection: Connection) {
-    this.repo = connection.getRepository(Comments);
-  }
-
+class CommentHandlers {
   async add(comment: CommentProps) {
-    return this.repo.insert(comment);
+    return getRepository(Comments).insert(comment);
   }
 
   async getAll() {
-    return this.repo.find({});
+    return getRepository(Comments).find({});
   }
 
   async delete(id: number) {
-    return this.repo.delete({ id });
+    return getRepository(Comments).delete({ id });
   }
 }
+
+export const commentHandlers = new CommentHandlers();

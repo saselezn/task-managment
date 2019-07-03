@@ -1,10 +1,35 @@
 import { expect } from 'chai';
 import * as HttpStatus from 'http-status-codes';
 import * as supertest from 'supertest';
+import * as jwt from 'jsonwebtoken';
+import * as config from 'config';
+import { Connection } from 'typeorm';
 import { initApp } from '../src/server';
 import { db } from '../src/db';
-import { Connection } from 'typeorm';
 import { Tasks, Users, Comments } from '../src/models';
+import { UserData } from '../src/controllers/auth';
+import { UserRoles } from '../src/models/users';
+
+interface UserFields {
+  email: string;
+  password?: string;
+  role: UserRoles;
+}
+
+const createTestToken = (userData: UserData) =>
+    jwt.sign(userData, config.get('app.jwt_secret'), { expiresIn: '1d' });
+
+const createUser = async (
+    conn: Connection,
+    { email, role = 'user', password = '123' }: UserFields,
+): Promise<number> => {
+  const resp = await conn.getRepository(Users).insert({
+    email,
+    password,
+    role,
+  });
+  return resp.raw[0].id;
+};
 
 describe('API test', () => {
   let req: any;
@@ -31,37 +56,38 @@ describe('API test', () => {
 
       const res = await req.post('/users').send(data).expect(HttpStatus.OK);
 
-      expect(res.body[0]).has.property('id');
-      expect(res.body[0].id).to.be.a('number');
+      expect(res.body).has.property('id');
+      expect(res.body.id).to.be.a('number');
 
-      userId = res.body[0].id;
+      userId = res.body.id;
     });
 
     it('should return user from db', async () => {
-      const res = await req.get('/users').expect(HttpStatus.OK);
+      const res = await req
+          .get('/users')
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`);
 
-      expect(res.body[0]).has.property('id');
-      expect(res.body[0].id).to.equal(userId);
+      const createdUser = res.body.find((user: { id: number }) => user.id === userId);
+
+      expect(res.statusCode).to.equal(HttpStatus.OK);
+      expect(res.body.length).not.equal(0);
+      expect(createdUser).not.equal(undefined);
     });
   });
 
   describe('Task test', () => {
     let userId: number;
     let taskId: number;
+    let adminId: number;
 
     before('Create user', async () => {
-      const data = {
-        email: 'test@gmail.com',
-        password: 'pwd',
-      };
-
-      const res = await req.post('/users').send(data).expect(HttpStatus.OK);
-      userId = res.body[0].id;
+      userId = await createUser(conn, { role: 'user', email: 'user@email.com' });
+      adminId = await createUser(conn, { role: 'admin', email: 'admin@email.com' });
     });
 
     after('remove user and task', async () => {
-      await conn.getRepository(Users).delete(userId);
       await conn.getRepository(Tasks).delete(taskId);
+      await conn.getRepository(Users).delete([userId, adminId]);
     });
 
     it('should create task', async () => {
@@ -71,7 +97,10 @@ describe('API test', () => {
         description: 'test',
       };
 
-      const res = await req.post('/tasks').send(data).expect(HttpStatus.OK);
+      const res = await req
+          .post('/tasks')
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .send(data).expect(HttpStatus.OK);
 
       expect(res.body[0]).has.property('id');
       expect(res.body[0].id).to.be.a('number');
@@ -79,23 +108,65 @@ describe('API test', () => {
       taskId = res.body[0].id;
     });
 
+    it('should throw error when user tries to archive task', async () => {
+      const data = {
+        status: 'archived',
+      };
+
+      await req
+          .patch(`/tasks/${taskId}`)
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .send(data).expect(HttpStatus.FORBIDDEN);
+    });
+
+    it('should successfully archive task', async () => {
+      const data = {
+        status: 'archived',
+      };
+
+      await req
+          .patch(`/tasks/${taskId}`)
+          .set('Cookie', `token=${createTestToken({ id: adminId, role: 'admin' })}`)
+          .send(data).expect(HttpStatus.OK);
+
+      const res = await req
+          .get(`/tasks/${taskId}`)
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .expect(HttpStatus.OK);
+
+      expect(res.body.id).to.equal(taskId);
+      expect(res.body.status).to.equal(data.status);
+    });
+
     it('should return task from db', async () => {
-      const res = await req.get('/tasks').expect(HttpStatus.OK);
+      const res = await req
+          .get('/tasks')
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .expect(HttpStatus.OK);
 
       expect(res.body[0]).has.property('id');
       expect(res.body[0].id).to.equal(taskId);
     });
 
     it('should return task by id from db', async () => {
-      const res = await req.get(`/tasks/${taskId}`).expect(HttpStatus.OK);
+      const res = await req
+          .get(`/tasks/${taskId}`)
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .expect(HttpStatus.OK);
 
       expect(res.body).has.property('id');
       expect(res.body.id).to.equal(taskId);
     });
 
     it('should remove task from db', async () => {
-      await req.delete(`/tasks/${taskId}`).expect(HttpStatus.OK);
-      await req.get(`/tasks/${taskId}`).expect(HttpStatus.NOT_FOUND);
+      await req
+          .delete(`/tasks/${taskId}`)
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .expect(HttpStatus.OK);
+      await req
+          .get(`/tasks/${taskId}`)
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .expect(HttpStatus.NOT_FOUND);
     });
   });
 
@@ -103,15 +174,11 @@ describe('API test', () => {
     let userId: number;
     let taskId: number;
     let commentId: number;
+    let adminId: number;
 
     before('Create user', async () => {
-      const user = {
-        email: 'test@gmail.com',
-        password: 'pwd',
-      };
-
-      const resUser = await req.post('/users').send(user).expect(HttpStatus.OK);
-      userId = resUser.body[0].id;
+      userId = await createUser(conn, { role: 'user', email: 'user@email.com' });
+      adminId = await createUser(conn, { role: 'admin', email: 'admin@email.com' });
 
       const task = {
         author_id: userId,
@@ -119,7 +186,11 @@ describe('API test', () => {
         description: 'test',
       };
 
-      const resTask = await req.post('/tasks').send(task).expect(HttpStatus.OK);
+      const resTask = await req
+          .post('/tasks')
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .send(task)
+          .expect(HttpStatus.OK);
 
       taskId = resTask.body[0].id;
     });
@@ -127,7 +198,7 @@ describe('API test', () => {
     after('remove user and task', async () => {
       await conn.getRepository(Comments).delete(commentId);
       await conn.getRepository(Tasks).delete(taskId);
-      await conn.getRepository(Users).delete(userId);
+      await conn.getRepository(Users).delete([userId, adminId]);
     });
 
     it('should create comment', async () => {
@@ -137,7 +208,11 @@ describe('API test', () => {
         text: 'test',
       };
 
-      const res = await req.post('/comments').send(data).expect(HttpStatus.OK);
+      const res = await req
+          .post('/comments')
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .send(data)
+          .expect(HttpStatus.OK);
 
       expect(res.body[0]).has.property('id');
       expect(res.body[0].id).to.be.a('number');
@@ -146,17 +221,32 @@ describe('API test', () => {
     });
 
     it('should return comment from db', async () => {
-      const res = await req.get('/comments').expect(HttpStatus.OK);
+      const res = await req
+          .get('/comments')
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .expect(HttpStatus.OK);
 
       expect(res.body[0]).has.property('id');
       expect(res.body[0].id).to.equal(commentId);
     });
 
     it('should remove comment from db', async () => {
-      await req.delete(`/comments/${commentId}`).expect(HttpStatus.OK);
-      const res = await req.get('/comments').expect(HttpStatus.OK);
+      await req
+          .delete(`/comments/${commentId}`)
+          .set('Cookie', `token=${createTestToken({ id: adminId, role: 'admin' })}`)
+          .expect(HttpStatus.OK);
+      const res = await req
+          .get('/comments')
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .expect(HttpStatus.OK);
 
       expect(res.body.length).to.equal(0);
+    });
+    it('should return 403 error when user tries to remove comment from db', async () => {
+      await req
+          .delete(`/comments/${commentId}`)
+          .set('Cookie', `token=${createTestToken({ id: userId, role: 'user' })}`)
+          .expect(HttpStatus.FORBIDDEN);
     });
   });
 });

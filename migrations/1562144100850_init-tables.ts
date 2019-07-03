@@ -10,7 +10,6 @@ export class Init1562144100850 implements MigrationInterface {
           id SERIAL PRIMARY KEY,
           email TEXT,
           password VARCHAR,
-          salt VARCHAR,
           role roles
         );
 

@@ -1,6 +1,7 @@
 {
   "app": {
-    "port": "PORT"
+    "port": "PORT",
+    "jwt_secret": "JWT_SECRET"
   },
   "connections": {
     "db": {
