@@ -1,5 +1,8 @@
-import { getRepository } from 'typeorm';
+import { getConnection, getRepository } from 'typeorm';
+import { get } from 'lodash';
 import { Tasks, TaskStatuses } from '../models/tasks';
+import { Users } from '../models';
+import { emailNotificator } from '../notifications/email';
 
 export interface TaskProps {
   author: number;
@@ -22,7 +25,21 @@ export class TaskHandlers {
   }
 
   async edit(taskId: number, props: UpdateTaskProps) {
-    return getRepository(Tasks).update({ id: taskId }, props);
+    const res = await getConnection()
+        .createQueryBuilder()
+        .update(Tasks)
+        .set(props)
+        .where('id = :id', { id: taskId })
+        .returning('*')
+        .execute();
+
+    const user = await getRepository(Users).findOne({ id: get(res, 'raw[0].assignee_id') });
+
+    if (user) {
+      await emailNotificator.sendEmail([user.email], taskId);
+    }
+
+    return res;
   }
 
   async getAll() {
