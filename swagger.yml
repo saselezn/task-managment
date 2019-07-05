@@ -1,0 +1,266 @@
+openapi: 3.0.0
+info:
+  title: Simple task managment system API
+  version: 0.0.1
+paths:
+  /users:
+    post:
+      summary: Creates new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                role:
+                  type: string
+                  enum:
+                    - user
+                    - admin
+      responses:
+        200:
+          description: Created user id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+    get:
+      security:
+        - cookieAuth: []
+      summary: Returns a list of users.
+      responses:
+        200:
+          description: A JSON array of user entities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                    role:
+                      type: string
+                    email:
+                      type: string
+  /tasks:
+    post:
+      security:
+        - cookieAuth: []
+      summary: Creates new task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                author_id:
+                  type: number
+                assignee_id:
+                  type: number
+                description:
+                  type: string
+      responses:
+        200:
+          description: Created task id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+    get:
+      security:
+        - cookieAuth: []
+      summary: Returns a list of tasks.
+      responses:
+        200:
+          description: Array of tasks.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                    author_id:
+                      type: number
+                    assignee_id:
+                      type: number
+                    description:
+                      type: string
+  /tasks/${id}:
+    patch:
+      security:
+        - cookieAuth: []
+      summary: Edit task with specific id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                author_id:
+                  type: number
+                assignee_id:
+                  type: number
+                status:
+                  type: string
+                  enum:
+                    - new
+                    - in progress
+                    - completed
+                    - archived
+                description:
+                  type: string
+      responses:
+        200:
+          description: Updated task id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                    author_id:
+                      type: number
+                    assignee_id:
+                      type: number
+                    status:
+                      type: string
+                      enum:
+                        - new
+                        - in progress
+                        - completed
+                        - archived
+                    description:
+                      type: string
+    delete:
+      security:
+        - cookieAuth: []
+      summary: Remove task with specific id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: Returns removed task id.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+  /comments:
+    post:
+      security:
+        - cookieAuth: []
+      summary: Creates new comment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                author_id:
+                  type: number
+                task_id:
+                  type: number
+                text:
+                  type: string
+      responses:
+        200:
+          description: Returns created comment id.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+    get:
+      security:
+        - cookieAuth: []
+      summary: Returns a list of comments.
+      responses:
+        200:
+          description: Created task id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                    author_id:
+                      type: number
+                    assignee_id:
+                      type: number
+                    description:
+                      type: string
+  /comments/${id}:
+    delete:
+      security:
+        - cookieAuth: []
+      summary: Remove comment with specific id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        200:
+          description: Returns removed comment id.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token

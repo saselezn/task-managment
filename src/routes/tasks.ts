@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import * as HttpStatus from 'http-status-codes';
 import { taskHandlers } from '../controllers';
 import { checkJwtToken } from '../middlewares/checkJwtToken';
+import {checkRoles} from '../middlewares/checkRoles';
 
 const router = Router();
 
@@ -49,7 +50,7 @@ router.get(
 
 router.delete(
     '/:id',
-    [checkJwtToken],
+    [checkJwtToken, checkRoles(['admin'])],
     async (req: Request, res: Response) => {
       const result = await taskHandlers.delete(req.params.id);
       return res.status(HttpStatus.OK).send(result);

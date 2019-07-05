@@ -21,17 +21,24 @@ services:
       DB_USER: taskmanager
       DB_PASSWORD: password
     volumes:
-      - "yarn:/root/.cache/yarn"
-      - "./:/usr/src/adara-academy"
-      - "build:/usr/src/build"
-      - "node-modules:/usr/src/node-modules"
-    working_dir: /usr/src/adara-academy
+      - "./:/usr/src"
+    working_dir: /usr/src
     depends_on:
       - db
     command: yarn start
     ports:
       - 3000:3000
       - 9220:9220
+  redoc:
+    image: redocly/redoc
+    ports:
+      - "8081:1234"
+    environment:
+      SPEC_URL: swagger.yml
+      PORT: 1234
+    volumes:
+      - ./swagger.yml:/usr/share/nginx/html/swagger.yml
+
 volumes:
   yarn:
   build:

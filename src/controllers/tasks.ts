@@ -5,8 +5,8 @@ import { Users } from '../models';
 import { emailNotificator } from '../notifications/email';
 
 export interface TaskProps {
-  author: number;
-  assignee: number;
+  author_id: number;
+  assignee_id: number;
   description: string;
 }
 
