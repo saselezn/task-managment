@@ -45,7 +45,7 @@
     "lodash": "^4.17.11",
     "nodemailer": "^6.2.1",
     "pg": "^7.11.0",
-    "typeorm": "^0.2.18"
+    "typeorm": "^0.2.25"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",
